@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pie Chat</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0f0f0f; color: #e8e8e8; height: 100vh;
+    display: flex; flex-direction: column;
+  }
+  header {
+    padding: 14px 24px; background: #1a1a1a;
+    border-bottom: 1px solid #2a2a2a;
+    display: flex; align-items: center; gap: 12px;
+  }
+  header h1 { font-size: 16px; font-weight: 600; color: #fff; }
+  header span { font-size: 12px; color: #666; }
+  .token-bar-wrap {
+    padding: 10px 24px; background: #141414;
+    border-bottom: 1px solid #222;
+  }
+  .token-bar-label {
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: #888; margin-bottom: 5px;
+  }
+  .token-bar-bg {
+    height: 6px; background: #2a2a2a; border-radius: 4px; overflow: hidden;
+  }
+  .token-bar-fill {
+    height: 100%; width: 0%; background: #4ade80;
+    border-radius: 4px; transition: width 0.3s, background 0.3s;
+  }
+  .token-bar-fill.warn  { background: #facc15; }
+  .token-bar-fill.danger{ background: #f87171; }
+  #messages {
+    flex: 1; overflow-y: auto; padding: 24px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .msg { max-width: 75%; padding: 12px 16px; border-radius: 12px; line-height: 1.6; font-size: 14px; }
+  .msg.user { background: #1e3a5f; align-self: flex-end; border-bottom-right-radius: 3px; }
+  .msg.assistant { background: #1e1e1e; border: 1px solid #2a2a2a; align-self: flex-start; border-bottom-left-radius: 3px; }
+  .msg.assistant.streaming { border-color: #4ade8044; }
+  .msg .meta { font-size: 11px; color: #666; margin-top: 6px; }
+  .cursor { display: inline-block; width: 8px; height: 14px;
+    background: #4ade80; animation: blink 1s step-end infinite; vertical-align: text-bottom; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .input-area {
+    padding: 16px 24px; background: #1a1a1a;
+    border-top: 1px solid #2a2a2a;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .input-row { display: flex; gap: 10px; }
+  #prompt {
+    flex: 1; background: #0f0f0f; border: 1px solid #333;
+    border-radius: 8px; padding: 10px 14px; color: #e8e8e8;
+    font-size: 14px; resize: none; outline: none;
+    font-family: inherit;
+  }
+  #prompt:focus { border-color: #4ade80; }
+  #send {
+    padding: 10px 20px; background: #4ade80; color: #000;
+    border: none; border-radius: 8px; font-weight: 600;
+    cursor: pointer; font-size: 14px; white-space: nowrap;
+  }
+  #send:disabled { background: #2a2a2a; color: #555; cursor: not-allowed; }
+  .controls { display: flex; gap: 16px; align-items: center; font-size: 12px; color: #888; }
+  .controls label { display: flex; align-items: center; gap: 6px; }
+  .controls input[type=range] { accent-color: #4ade80; }
+  .controls input[type=number] {
+    width: 60px; background: #0f0f0f; border: 1px solid #333;
+    border-radius: 4px; padding: 3px 6px; color: #e8e8e8; font-size: 12px;
+  }
+  .status { font-size: 11px; color: #555; text-align: center; padding: 4px 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🥧 Pie Chat</h1>
+  </div>
+  <span id="status-dot">● disconnected</span>
+</header>
+
+<div class="token-bar-wrap">
+  <div class="token-bar-label">
+    <span>Token Budget</span>
+    <span id="token-label">0 / 128</span>
+  </div>
+  <div class="token-bar-bg">
+    <div class="token-bar-fill" id="token-fill"></div>
+  </div>
+</div>
+
+<div id="messages">
+  <div class="msg assistant">
+    👋 Hello! I'm running on your local Pie inference engine with a live token budget monitor. Ask me anything.
+  </div>
+</div>
+
+<div class="input-area">
+  <div class="controls">
+    <label>
+      Max tokens:
+      <input type="number" id="max-tokens" value="128" min="16" max="512">
+    </label>
+    <label>
+      Temp: <span id="temp-val">0.6</span>
+      <input type="range" id="temperature" min="0.1" max="1.5" step="0.1" value="0.6">
+    </label>
+  </div>
+  <div class="input-row">
+    <textarea id="prompt" rows="2" placeholder="Type your message... (Enter to send)"></textarea>
+    <button id="send">Send</button>
+  </div>
+</div>
+
+<script>
+  const messagesEl = document.getElementById('messages');
+  const promptEl   = document.getElementById('prompt');
+  const sendBtn    = document.getElementById('send');
+  const tokenFill  = document.getElementById('token-fill');
+  const tokenLabel = document.getElementById('token-label');
+  const statusDot  = document.getElementById('status-dot');
+  const tempSlider = document.getElementById('temperature');
+  const tempVal    = document.getElementById('temp-val');
+
+  tempSlider.oninput = () => tempVal.textContent = tempSlider.value;
+
+  let ws = null;
+  let currentMsgEl = null;
+
+  function connect() {
+    ws = new WebSocket(`ws://${location.host}/chat`);
+    ws.onopen  = () => { statusDot.textContent = '● connected'; statusDot.style.color = '#4ade80'; };
+    ws.onclose = () => { statusDot.textContent = '● disconnected'; statusDot.style.color = '#f87171'; setTimeout(connect, 2000); };
+    ws.onerror = () => ws.close();
+
+    ws.onmessage = (e) => {
+      const msg = JSON.parse(e.data);
+
+      if (msg.type === 'start') {
+        currentMsgEl = document.createElement('div');
+        currentMsgEl.className = 'msg assistant streaming';
+        currentMsgEl.innerHTML = '<span class="text"></span><span class="cursor"></span>';
+        messagesEl.appendChild(currentMsgEl);
+        resetBar(parseInt(document.getElementById('max-tokens').value));
+        scrollDown();
+      }
+
+      else if (msg.type === 'token') {
+        if (currentMsgEl) {
+          currentMsgEl.querySelector('.text').textContent += msg.text;
+          scrollDown();
+        }
+      }
+
+      else if (msg.type === 'done') {
+        if (currentMsgEl) {
+          currentMsgEl.querySelector('.cursor')?.remove();
+          currentMsgEl.classList.remove('streaming');
+          const pct = msg.utilization_pct.toFixed(1);
+          const meta = document.createElement('div');
+          meta.className = 'meta';
+          meta.textContent = `${msg.tokens_used} / ${msg.token_budget} tokens (${pct}%)${msg.budget_exhausted ? ' · budget exhausted' : ''}`;
+          currentMsgEl.appendChild(meta);
+          updateBar(msg.tokens_used, msg.token_budget);
+        }
+        sendBtn.disabled = false;
+        promptEl.disabled = false;
+        currentMsgEl = null;
+        scrollDown();
+      }
+
+      else if (msg.type === 'error') {
+        if (currentMsgEl) {
+          currentMsgEl.querySelector('.cursor')?.remove();
+          currentMsgEl.querySelector('.text').textContent = '⚠ ' + msg.msg;
+          currentMsgEl.classList.remove('streaming');
+        }
+        sendBtn.disabled = false;
+        promptEl.disabled = false;
+        currentMsgEl = null;
+      }
+    };
+  }
+
+  function resetBar(budget) {
+    tokenLabel.textContent = `0 / ${budget}`;
+    tokenFill.style.width = '0%';
+    tokenFill.className = 'token-bar-fill';
+  }
+
+  function updateBar(used, budget) {
+    const pct = Math.min(100, (used / budget) * 100);
+    tokenFill.style.width = pct + '%';
+    tokenLabel.textContent = `${used} / ${budget}`;
+    tokenFill.className = 'token-bar-fill' + (pct > 90 ? ' danger' : pct > 70 ? ' warn' : '');
+  }
+
+  function scrollDown() {
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function send() {
+    const prompt = promptEl.value.trim();
+    if (!prompt || !ws || ws.readyState !== WebSocket.OPEN) return;
+
+    const userEl = document.createElement('div');
+    userEl.className = 'msg user';
+    userEl.textContent = prompt;
+    messagesEl.appendChild(userEl);
+    scrollDown();
+
+    sendBtn.disabled = true;
+    promptEl.disabled = true;
+    promptEl.value = '';
+
+    ws.send(JSON.stringify({
+      prompt,
+      max_tokens:  parseInt(document.getElementById('max-tokens').value),
+      temperature: parseFloat(tempSlider.value),
+    }));
+  }
+
+  sendBtn.onclick = send;
+  promptEl.onkeydown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+  };
+
+  connect();
+</script>
+</body>
+</html>
