@@ -55,6 +55,16 @@ Open http://localhost:3000
 | `/engine/terminate/{id}` | POST | Terminate a process by ID |
 | `/profiles` | GET | List all profiles |
 
+
+
+Results:
+<img width="1919" height="977" alt="Screenshot 2026-06-10 154203" src="https://github.com/user-attachments/assets/d4d49574-c5de-44be-83df-f3280bc3f817" />
+<img width="1919" height="843" alt="Screenshot 2026-06-10 154129" src="https://github.com/user-attachments/assets/2c64a7bf-27b4-4336-b111-58defbe63dfa" />
+<img width="1919" height="979" alt="Screenshot 2026-06-10 153933" src="https://github.com/user-attachments/assets/459b9a0e-5c4e-47b3-8432-c16a8c23a2c5" />
+
+
+
+
 ## Notes
 
 - `chat-apc` inferlet from RatioThink uses POSIX shared memory which is not available on Windows. Conversation context is managed at the application layer instead.
