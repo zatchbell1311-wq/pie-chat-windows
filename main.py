@@ -10,7 +10,7 @@ app = FastAPI()
 HTML = (Path(__file__).parent / "index.html").read_text(encoding="utf-8")
 
 PIE_URL = "ws://127.0.0.1:8080"
-PIE_TOKEN = "N8uouLRG3G0CZ_c_XG_-cmncZab6-FOOun4cUkx0e9-CBpcjxGwwwc8AXKeqpN4u"
+PIE_TOKEN = "MWxD-cjwKYXsWhTcTSBGYiNngfcpW-vjy8lHAShNZXuPVFA9kcVPdhZMbjBpHtLy"
 INFERLET = "my-first-inferlet@0.1.0"
 WASM_PATH = Path.home() / "my-first-inferlet/target/wasm32-wasip2/release/my_first_inferlet.wasm"
 TOML_PATH = Path.home() / "my-first-inferlet/Pie.toml"
