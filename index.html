@@ -1,267 +1,270 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pie Chat</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #1a1a2e;
-            color: #eee;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-        .header {
-            padding: 16px 24px;
-            background: #16213e;
-            border-bottom: 1px solid #0f3460;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        .header h1 { font-size: 20px; font-weight: 600; }
-        .status {
-            font-size: 12px;
-            padding: 4px 10px;
-            border-radius: 12px;
-            background: #e74c3c;
-            color: white;
-        }
-        .status.connected { background: #2ecc71; }
-        .budget-bar {
-            padding: 12px 24px;
-            background: #16213e;
-            border-bottom: 1px solid #0f3460;
-        }
-        .budget-label {
-            display: flex;
-            justify-content: space-between;
-            font-size: 13px;
-            margin-bottom: 6px;
-            color: #aaa;
-        }
-        .budget-track {
-            height: 6px;
-            background: #0f3460;
-            border-radius: 3px;
-            overflow: hidden;
-        }
-        .budget-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #2ecc71, #f39c12, #e74c3c);
-            border-radius: 3px;
-            transition: width 0.3s ease;
-            width: 0%;
-        }
-        .chat-area {
-            flex: 1;
-            overflow-y: auto;
-            padding: 24px;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-        .message {
-            max-width: 80%;
-            padding: 12px 16px;
-            border-radius: 12px;
-            line-height: 1.5;
-            font-size: 14px;
-        }
-        .message.user {
-            align-self: flex-end;
-            background: #0f3460;
-        }
-        .message.assistant {
-            align-self: flex-start;
-            background: #16213e;
-            border: 1px solid #0f3460;
-        }
-        .input-area {
-            padding: 16px 24px;
-            background: #16213e;
-            border-top: 1px solid #0f3460;
-            display: flex;
-            gap: 12px;
-            align-items: flex-end;
-        }
-        .input-area input {
-            flex: 1;
-            padding: 12px 16px;
-            background: #0f3460;
-            border: 1px solid #0f3460;
-            border-radius: 8px;
-            color: #eee;
-            font-size: 14px;
-            outline: none;
-        }
-        .input-area input:focus { border-color: #e94560; }
-        .input-area button {
-            padding: 12px 24px;
-            background: #e94560;
-            border: none;
-            border-radius: 8px;
-            color: white;
-            font-size: 14px;
-            cursor: pointer;
-            transition: opacity 0.2s;
-        }
-        .input-area button:hover { opacity: 0.9; }
-        .input-area button:disabled { opacity: 0.5; cursor: not-allowed; }
-        .settings {
-            display: flex;
-            gap: 16px;
-            padding: 8px 24px;
-            background: #16213e;
-            border-top: 1px solid #0f3460;
-            font-size: 13px;
-            color: #aaa;
-        }
-        .settings label { display: flex; align-items: center; gap: 6px; }
-        .settings input[type="number"] {
-            width: 60px;
-            padding: 4px 8px;
-            background: #0f3460;
-            border: 1px solid #0f3460;
-            border-radius: 4px;
-            color: #eee;
-        }
-        .settings input[type="range"] { width: 100px; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pie Chat</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0d1117;color:#e6edf3;height:100vh;display:flex;flex-direction:column;}
+.header{padding:12px 20px;background:#161b22;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.header h1{font-size:18px;font-weight:600;color:#58a6ff;}
+.status{font-size:11px;padding:3px 10px;border-radius:20px;background:#da3633;color:white;font-weight:500;}
+.status.connected{background:#238636;}
+.tabs{display:flex;gap:0;margin-left:auto;}
+.tab{padding:6px 16px;background:#21262d;border:1px solid #30363d;color:#8b949e;font-size:12px;cursor:pointer;}
+.tab:first-child{border-radius:6px 0 0 6px;}
+.tab:last-child{border-radius:0 6px 6px 0;}
+.tab.active{background:#58a6ff;color:white;border-color:#58a6ff;}
+.panel{display:none;flex:1;flex-direction:column;overflow:hidden;}
+.panel.active{display:flex;}
+.profile-bar{padding:8px 20px;background:#161b22;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.profile-bar label{font-size:12px;color:#8b949e;}
+.profile-bar select,.profile-bar input[type=number]{background:#21262d;border:1px solid #30363d;color:#e6edf3;padding:4px 8px;border-radius:6px;font-size:12px;}
+.profile-bar input[type=range]{width:80px;}
+.profile-bar button{padding:4px 12px;background:#21262d;border:1px solid #30363d;color:#e6edf3;border-radius:6px;font-size:12px;cursor:pointer;}
+.profile-bar button:hover{background:#30363d;}
+.budget-section{padding:8px 20px;background:#161b22;border-bottom:1px solid #30363d;}
+.budget-row{display:flex;justify-content:space-between;font-size:11px;color:#8b949e;margin-bottom:4px;}
+.budget-track{height:4px;background:#21262d;border-radius:2px;overflow:hidden;margin-bottom:4px;}
+.budget-fill{height:100%;background:#238636;border-radius:2px;transition:width 0.3s,background 0.3s;width:0%;}
+.budget-fill.warn{background:#d29922;}
+.budget-fill.danger{background:#da3633;}
+.conv-stats{font-size:10px;color:#6e7681;}
+.chat-area{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:12px;}
+.msg{max-width:75%;padding:10px 14px;border-radius:10px;line-height:1.55;font-size:13px;white-space:pre-wrap;}
+.msg.user{align-self:flex-end;background:#1f6feb;color:white;}
+.msg.assistant{align-self:flex-start;background:#161b22;border:1px solid #30363d;}
+.msg-meta{font-size:10px;color:#6e7681;margin-top:5px;}
+.input-row{padding:12px 20px;background:#161b22;border-top:1px solid #30363d;display:flex;gap:10px;}
+.input-row textarea{flex:1;padding:10px 14px;background:#21262d;border:1px solid #30363d;border-radius:8px;color:#e6edf3;font-size:13px;outline:none;resize:none;height:44px;font-family:inherit;}
+.input-row textarea:focus{border-color:#58a6ff;}
+.input-row button{padding:10px 20px;background:#238636;border:none;border-radius:8px;color:white;font-size:13px;cursor:pointer;}
+.input-row button:hover{background:#2ea043;}
+.input-row button:disabled{opacity:0.5;cursor:not-allowed;}
+.engine-panel{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px;}
+.engine-card{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:16px;}
+.engine-card h3{font-size:13px;color:#58a6ff;margin-bottom:12px;font-weight:600;}
+.engine-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #21262d;font-size:12px;}
+.engine-row:last-child{border-bottom:none;}
+.engine-label{color:#8b949e;}
+.engine-value{color:#e6edf3;font-family:monospace;}
+.engine-value.online{color:#238636;}
+.engine-value.offline{color:#da3633;}
+.refresh-btn{padding:6px 14px;background:#21262d;border:1px solid #30363d;color:#e6edf3;border-radius:6px;font-size:12px;cursor:pointer;margin-top:12px;}
+.refresh-btn:hover{background:#30363d;}
+.proc-list{margin-top:8px;}
+.proc-item{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;background:#21262d;border-radius:6px;margin-bottom:6px;font-size:12px;}
+.proc-item button{padding:3px 10px;background:#da3633;border:none;color:white;border-radius:4px;font-size:11px;cursor:pointer;}
+.no-procs{color:#6e7681;font-size:12px;font-style:italic;}
+</style>
 </head>
 <body>
-    <div class="header">
-        <h1>Pie Chat</h1>
-        <span class="status" id="status">disconnected</span>
+<div class="header">
+  <h1>Pie Chat</h1>
+  <span class="status" id="status">disconnected</span>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('chat')">Chat</div>
+    <div class="tab" onclick="switchTab('engine')">Engine</div>
+  </div>
+</div>
+
+<div class="panel active" id="panel-chat">
+  <div class="profile-bar">
+    <label>Profile:
+      <select id="profile-select">
+        <option value="balanced">Balanced</option>
+        <option value="precise">Precise</option>
+        <option value="creative">Creative</option>
+        <option value="compact">Compact</option>
+      </select>
+    </label>
+    <label>Max tokens: <input type="number" id="max-tokens" value="128" min="8" max="2048" style="width:64px"></label>
+    <label>Temp: <input type="range" id="temp" value="0.6" min="0" max="2" step="0.1"><span id="temp-val" style="margin-left:4px;font-size:11px">0.6</span></label>
+    <button onclick="clearHistory()">Clear History</button>
+  </div>
+  <div class="budget-section">
+    <div class="budget-row">
+      <span>Token Budget (this turn)</span>
+      <span id="budget-text">0 / 128</span>
     </div>
-    <div class="budget-bar">
-        <div class="budget-label">
-            <span>Token Budget</span>
-            <span id="budget-text">0 / 128 tokens</span>
-        </div>
-        <div class="budget-track">
-            <div class="budget-fill" id="budget-fill"></div>
-        </div>
+    <div class="budget-track"><div class="budget-fill" id="budget-fill"></div></div>
+    <div class="conv-stats" id="conv-stats">Conversation: 0 turns | 0 total tokens used</div>
+  </div>
+  <div class="chat-area" id="chat"></div>
+  <div class="input-row">
+    <textarea id="message" placeholder="Type your message... (Enter to send, Shift+Enter for newline)"></textarea>
+    <button id="send-btn" onclick="send()">Send</button>
+  </div>
+</div>
+
+<div class="panel" id="panel-engine">
+  <div class="engine-panel">
+    <div class="engine-card">
+      <h3>Engine Status</h3>
+      <div class="engine-row"><span class="engine-label">Status</span><span class="engine-value" id="eng-status">—</span></div>
+      <div class="engine-row"><span class="engine-label">Server</span><span class="engine-value" id="eng-server">—</span></div>
+      <div class="engine-row"><span class="engine-label">Model</span><span class="engine-value" id="eng-model">—</span></div>
+      <div class="engine-row"><span class="engine-label">Inferlet</span><span class="engine-value" id="eng-inferlet">—</span></div>
+      <div class="engine-row"><span class="engine-label">Active Processes</span><span class="engine-value" id="eng-procs">—</span></div>
+      <button class="refresh-btn" onclick="refreshEngine()">Refresh</button>
     </div>
-    <div class="chat-area" id="chat"></div>
-    <div class="settings">
-        <label>Max tokens: <input type="number" id="max-tokens" value="128" min="1" max="2048"></label>
-        <label>Temp: <input type="range" id="temp" value="0.6" min="0" max="2" step="0.1"></label>
+    <div class="engine-card">
+      <h3>Active Processes</h3>
+      <div class="proc-list" id="proc-list"><div class="no-procs">No active processes</div></div>
     </div>
-    <div class="input-area">
-        <input type="text" id="message" placeholder="Type your message..." onkeypress="if(event.key==='Enter')send()">
-        <button id="send-btn" onclick="send()">Send</button>
+    <div class="engine-card">
+      <h3>Profiles</h3>
+      <div id="profile-list"></div>
     </div>
+  </div>
+</div>
 
-    <script>
-        const statusEl = document.getElementById('status');
-        const chatEl = document.getElementById('chat');
-        const messageEl = document.getElementById('message');
-        const sendBtn = document.getElementById('send-btn');
-        const budgetText = document.getElementById('budget-text');
-        const budgetFill = document.getElementById('budget-fill');
-        const maxTokensEl = document.getElementById('max-tokens');
-        const tempEl = document.getElementById('temp');
+<script>
+const statusEl = document.getElementById('status');
+const chatEl = document.getElementById('chat');
+const msgEl = document.getElementById('message');
+const sendBtn = document.getElementById('send-btn');
+const budgetText = document.getElementById('budget-text');
+const budgetFill = document.getElementById('budget-fill');
+const convStats = document.getElementById('conv-stats');
+const maxTokensEl = document.getElementById('max-tokens');
+const tempEl = document.getElementById('temp');
+const tempVal = document.getElementById('temp-val');
+const profileSel = document.getElementById('profile-select');
 
-        let ws = null;
-        let currentMsgEl = null;
+let ws = null;
+let currentMsgEl = null;
 
-        function connect() {
-            const wsUrl = 'ws://' + window.location.host + '/chat';
-            console.log('Connecting to:', wsUrl);
-            
-            ws = new WebSocket(wsUrl);
+const PROFILES = {
+  balanced: {max_tokens:128, temperature:0.6, system:"You are a helpful assistant."},
+  precise:  {max_tokens:256, temperature:0.1, system:"You are a precise, factual assistant. Be concise and accurate."},
+  creative: {max_tokens:512, temperature:1.2, system:"You are a creative assistant. Think outside the box."},
+  compact:  {max_tokens:64,  temperature:0.7, system:"You are a brief assistant. Keep all answers under 3 sentences."}
+};
 
-            ws.onopen = function() {
-                console.log('WebSocket connected');
-                statusEl.textContent = 'connected';
-                statusEl.classList.add('connected');
-            };
+function switchTab(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  event.target.classList.add('active');
+  if (name === 'engine') refreshEngine();
+}
 
-            ws.onmessage = function(event) {
-                const msg = JSON.parse(event.data);
-                console.log('Received:', msg.type);
+tempEl.oninput = function() { tempVal.textContent = tempEl.value; };
+profileSel.onchange = function() {
+  const p = PROFILES[profileSel.value];
+  if (p) { maxTokensEl.value = p.max_tokens; tempEl.value = p.temperature; tempVal.textContent = p.temperature; }
+};
 
-                if (msg.type === 'start') {
-                    currentMsgEl = document.createElement('div');
-                    currentMsgEl.className = 'message assistant';
-                    chatEl.appendChild(currentMsgEl);
-                    scrollDown();
-                } else if (msg.type === 'token') {
-                    if (currentMsgEl) currentMsgEl.textContent += msg.text;
-                    scrollDown();
-                } else if (msg.type === 'done') {
-                    const meta = document.createElement('div');
-                    meta.style.fontSize = '11px';
-                    meta.style.color = '#888';
-                    meta.style.marginTop = '4px';
-                    meta.textContent = msg.tokens_used + ' / ' + msg.token_budget + ' tokens (' + msg.utilization_pct.toFixed(1) + '%)' + (msg.budget_exhausted ? ' - budget exhausted' : '');
-                    if (currentMsgEl) currentMsgEl.appendChild(meta);
-                    updateBudget(msg.tokens_used, msg.token_budget);
-                    sendBtn.disabled = false;
-                    messageEl.disabled = false;
-                    currentMsgEl = null;
-                } else if (msg.type === 'error') {
-                    addMessage('Error: ' + msg.msg, 'assistant');
-                    sendBtn.disabled = false;
-                    messageEl.disabled = false;
-                }
-            };
+async function refreshEngine() {
+  try {
+    const r = await fetch('/engine/status');
+    const data = await r.json();
+    document.getElementById('eng-status').textContent = data.status;
+    document.getElementById('eng-status').className = 'engine-value ' + data.status;
+    document.getElementById('eng-server').textContent = data.server || '—';
+    document.getElementById('eng-model').textContent = data.model || '—';
+    document.getElementById('eng-inferlet').textContent = data.inferlet || '—';
+    document.getElementById('eng-procs').textContent = data.active_processes ?? '—';
+    const procList = document.getElementById('proc-list');
+    if (!data.processes || data.processes.length === 0) {
+      procList.innerHTML = '<div class="no-procs">No active processes</div>';
+    } else {
+      procList.innerHTML = data.processes.map(p =>
+        '<div class="proc-item"><span>' + p + '</span><button onclick="terminateProc(\'' + p + '\')">Terminate</button></div>'
+      ).join('');
+    }
+  } catch(e) {
+    document.getElementById('eng-status').textContent = 'error: ' + e.message;
+  }
+  const profList = document.getElementById('profile-list');
+  profList.innerHTML = Object.entries(PROFILES).map(([name, p]) =>
+    '<div class="engine-row"><span class="engine-label">' + name + '</span><span class="engine-value" style="font-size:11px">temp=' + p.temperature + ' max_tokens=' + p.max_tokens + '</span></div>'
+  ).join('');
+}
 
-            ws.onclose = function() {
-                console.log('WebSocket closed');
-                statusEl.textContent = 'disconnected';
-                statusEl.classList.remove('connected');
-                setTimeout(connect, 2000);
-            };
+async function terminateProc(id) {
+  await fetch('/engine/terminate/' + id, {method:'POST'});
+  refreshEngine();
+}
 
-            ws.onerror = function(err) {
-                console.error('WebSocket error:', err);
-            };
-        }
+function connect() {
+  const url = 'ws://' + window.location.host + '/chat';
+  ws = new WebSocket(url);
+  ws.onopen = function() { statusEl.textContent = 'connected'; statusEl.className = 'status connected'; };
+  ws.onclose = function() { statusEl.textContent = 'disconnected'; statusEl.className = 'status'; setTimeout(connect, 2000); };
+  ws.onerror = function(e) { console.error('ws error', e); };
+  ws.onmessage = function(e) {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'start') {
+      currentMsgEl = document.createElement('div');
+      currentMsgEl.className = 'msg assistant';
+      chatEl.appendChild(currentMsgEl);
+      scroll();
+    } else if (msg.type === 'token') {
+      if (currentMsgEl) currentMsgEl.textContent += msg.text;
+      scroll();
+    } else if (msg.type === 'done') {
+      const pct = Math.min(100, msg.utilization_pct);
+      budgetFill.style.width = pct + '%';
+      budgetFill.className = 'budget-fill' + (pct>90?' danger':pct>70?' warn':'');
+      budgetText.textContent = msg.tokens_used + ' / ' + msg.token_budget;
+      convStats.textContent = 'Conversation: ' + msg.history_turns + ' turns | ' + msg.total_tokens + ' total tokens used';
+      if (currentMsgEl) {
+        const meta = document.createElement('div');
+        meta.className = 'msg-meta';
+        meta.textContent = msg.tokens_used + ' tokens this turn' + (msg.budget_exhausted ? ' (budget exhausted)' : '');
+        currentMsgEl.appendChild(meta);
+      }
+      sendBtn.disabled = false; msgEl.disabled = false; currentMsgEl = null;
+    } else if (msg.type === 'error') {
+      addMsg('Error: ' + msg.msg, 'assistant');
+      sendBtn.disabled = false; msgEl.disabled = false;
+    } else if (msg.type === 'history_cleared') {
+      convStats.textContent = 'Conversation: 0 turns | 0 total tokens used';
+      budgetFill.style.width = '0%';
+      budgetText.textContent = '0 / ' + maxTokensEl.value;
+    }
+  };
+}
 
-        function addMessage(text, role) {
-            const div = document.createElement('div');
-            div.className = 'message ' + role;
-            div.textContent = text;
-            chatEl.appendChild(div);
-            scrollDown();
-        }
+function addMsg(text, role) {
+  const d = document.createElement('div');
+  d.className = 'msg ' + role;
+  d.textContent = text;
+  chatEl.appendChild(d);
+  scroll();
+}
 
-        function scrollDown() {
-            chatEl.scrollTop = chatEl.scrollHeight;
-        }
+function scroll() { chatEl.scrollTop = chatEl.scrollHeight; }
 
-        function updateBudget(used, budget) {
-            const pct = Math.min(100, (used / budget) * 100);
-            budgetFill.style.width = pct + '%';
-            budgetText.textContent = used + ' / ' + budget + ' tokens';
-        }
+function clearHistory() {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({type:'clear_history'}));
+    chatEl.innerHTML = '';
+    addMsg('History cleared. Starting fresh conversation.', 'assistant');
+  }
+}
 
-        function send() {
-            const text = messageEl.value.trim();
-            if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+function send() {
+  const text = msgEl.value.trim();
+  if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+  addMsg(text, 'user');
+  sendBtn.disabled = true; msgEl.disabled = true; msgEl.value = '';
+  const maxTokens = parseInt(maxTokensEl.value);
+  const profile = PROFILES[profileSel.value] || PROFILES.balanced;
+  budgetFill.style.width = '0%';
+  budgetText.textContent = '0 / ' + maxTokens;
+  ws.send(JSON.stringify({prompt:text, max_tokens:maxTokens, temperature:parseFloat(tempEl.value), system_prompt:profile.system}));
+}
 
-            addMessage(text, 'user');
-            sendBtn.disabled = true;
-            messageEl.disabled = true;
-            messageEl.value = '';
+msgEl.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+});
 
-            const maxTokens = parseInt(maxTokensEl.value);
-            updateBudget(0, maxTokens);
-
-            ws.send(JSON.stringify({
-                prompt: text,
-                max_tokens: maxTokens,
-                temperature: parseFloat(tempEl.value)
-            }));
-        }
-
-        addMessage("Hello! I am running on your local Pie inference engine with a live token budget monitor. Ask me anything.", 'assistant');
-        connect();
-    </script>
+addMsg("Hello! I am Pie Chat — running on your local inference engine. I remember our conversation context across turns. Switch to the Engine tab to view server status and manage processes.", 'assistant');
+connect();
+</script>
 </body>
 </html>
