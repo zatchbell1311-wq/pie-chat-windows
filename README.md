@@ -8,7 +8,9 @@ Built as part of a research collaboration with Prof. Lin Zhong's Efficient Compu
 
 - **Conversation history** — Messages accumulate context across turns with per-turn and total token tracking
 - **Profiles** — Four built-in profiles (Balanced, Precise, Creative, Compact) each bundling a system prompt, temperature, and max_tokens preset
+- **Two-tier token limits** — Per-request limit (max_tokens) controls single response length; context length limit (MAX_CONTEXT_TOKENS = 2048) tracks total conversation tokens with a sliding window that drops oldest turns when the context limit approaches
 - **Live token budget bar** — Real-time token usage per turn and across the full conversation
+- **Clean response rendering** — Reasoning traces (<think> blocks) are stripped from the UI while preserved in history context
 - **Engine management** — Engine tab showing server status, active model, running processes with terminate controls, and profile configurations
 
 ## Stack
