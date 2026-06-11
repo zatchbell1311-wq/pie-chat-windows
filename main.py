@@ -11,9 +11,9 @@ app = FastAPI()
 
 PIE_URL = "ws://127.0.0.1:8080"
 PIE_TOKEN = "MWxD-cjwKYXsWhTcTSBGYiNngfcpW-vjy8lHAShNZXuPVFA9kcVPdhZMbjBpHtLy"
-INFERLET = "my-first-inferlet@0.1.0"
-WASM_PATH = Path.home() / "my-first-inferlet/target/wasm32-wasip2/release/my_first_inferlet.wasm"
-TOML_PATH = Path.home() / "my-first-inferlet/Pie.toml"
+INFERLET = "pie-token-budget-inferlet@0.1.0"
+WASM_PATH = Path.home() / "pie-token-budget-inferlet/target/wasm32-wasip2/release/pie_token_budget_inferlet.wasm"
+TOML_PATH = Path.home() / "pie-token-budget-inferlet/Pie.toml"
 
 PROFILES = {
     "balanced": {"max_tokens": 128, "temperature": 0.6, "system": "You are a helpful assistant."},
@@ -22,14 +22,28 @@ PROFILES = {
     "compact":  {"max_tokens": 64,  "temperature": 0.7, "system": "You are a brief assistant. Keep all answers under 3 sentences."},
 }
 
-def build_prompt(history, new_user_msg, system_prompt):
-    lines = [f"System: {system_prompt}"]
-    for turn in history:
-        lines.append(f"User: {turn['user']}")
-        lines.append(f"Assistant: {turn['assistant']}")
-    lines.append(f"User: {new_user_msg}")
-    lines.append("Assistant:")
-    return "\n".join(lines)
+MAX_CONTEXT_TOKENS = 2048
+
+def estimate_tokens(text):
+    return max(1, len(text) // 4)
+
+def build_prompt(history, new_user_msg, system_prompt, max_tokens_this_turn=128):
+    available = MAX_CONTEXT_TOKENS - max_tokens_this_turn
+    system_line = "System: " + system_prompt + "\n"
+    current_turn = "User: " + new_user_msg + "\nAssistant:"
+    base_tokens = estimate_tokens(system_line + current_turn)
+    if base_tokens >= available:
+        return system_line + current_turn
+    history_lines = []
+    used = base_tokens
+    for turn in reversed(history):
+        block = "User: " + turn["user"] + "\nAssistant: " + turn["assistant"] + "\n"
+        cost = estimate_tokens(block)
+        if used + cost > available:
+            break
+        history_lines.insert(0, block)
+        used += cost
+    return system_line + "".join(history_lines) + current_turn
 
 @app.get("/")
 async def index():
@@ -92,7 +106,7 @@ async def chat(ws: WebSocket):
                 temperature = float(data.get("temperature", 0.6))
                 system_prompt = data.get("system_prompt", "You are a helpful assistant.")
 
-                full_prompt = build_prompt(history, user_msg, system_prompt)
+                full_prompt = build_prompt(history, user_msg, system_prompt, max_tokens)
                 await ws.send_json({"type": "start"})
 
                 try:
