@@ -1,19 +1,21 @@
 import asyncio
 import json
-import subprocess
-import sys
+import re
 from pathlib import Path
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
 from pie_client import PieClient, Event
 
 app = FastAPI()
+HTML = (Path(__file__).parent / "index.html").read_text(encoding="utf-8")
 
 PIE_URL = "ws://127.0.0.1:8080"
-PIE_TOKEN = "MWxD-cjwKYXsWhTcTSBGYiNngfcpW-vjy8lHAShNZXuPVFA9kcVPdhZMbjBpHtLy"
-INFERLET = "pie-token-budget-inferlet@0.1.0"
-WASM_PATH = Path.home() / "pie-token-budget-inferlet/target/wasm32-wasip2/release/pie_token_budget_inferlet.wasm"
-TOML_PATH = Path.home() / "pie-token-budget-inferlet/Pie.toml"
+PIE_TOKEN = "SGd1rY6ti-Ii5TqjXzqB5KrI-BXh3MUxoss2hWsBNCP_Ba2ZXgIBDPSmugUfUH7C"
+INFERLET = "my-first-inferlet@0.1.0"
+WASM_PATH = Path.home() / "my-first-inferlet/target/wasm32-wasip2/release/my_first_inferlet.wasm"
+TOML_PATH = Path.home() / "my-first-inferlet/Pie.toml"
+
+MAX_CONTEXT_TOKENS = 2048
 
 PROFILES = {
     "balanced": {"max_tokens": 128, "temperature": 0.6, "system": "You are a helpful assistant."},
@@ -22,12 +24,10 @@ PROFILES = {
     "compact":  {"max_tokens": 64,  "temperature": 0.7, "system": "You are a brief assistant. Keep all answers under 3 sentences."},
 }
 
-MAX_CONTEXT_TOKENS = 2048
-
 def estimate_tokens(text):
     return max(1, len(text) // 4)
 
-def build_prompt(history, new_user_msg, system_prompt, max_tokens_this_turn=128):
+def build_prompt(history, new_user_msg, system_prompt, max_tokens_this_turn):
     available = MAX_CONTEXT_TOKENS - max_tokens_this_turn
     system_line = "System: " + system_prompt + "\n"
     current_turn = "User: " + new_user_msg + "\nAssistant:"
@@ -47,35 +47,7 @@ def build_prompt(history, new_user_msg, system_prompt, max_tokens_this_turn=128)
 
 @app.get("/")
 async def index():
-    html = (Path(__file__).parent / "index.html").read_text(encoding="utf-8")
-    return HTMLResponse(html)
-
-@app.get("/engine/status")
-async def engine_status():
-    try:
-        async with PieClient(PIE_URL) as client:
-            await client.auth_by_token(PIE_TOKEN)
-            procs = await asyncio.wait_for(client.list_processes(), timeout=5)
-            return JSONResponse({
-                "status": "online",
-                "server": PIE_URL,
-                "model": "Qwen/Qwen3-0.6B",
-                "inferlet": INFERLET,
-                "active_processes": len(procs) if procs else 0,
-                "processes": procs if procs else [],
-            })
-    except Exception as e:
-        return JSONResponse({"status": "offline", "error": str(e)}, status_code=503)
-
-@app.post("/engine/terminate/{process_id}")
-async def terminate_process(process_id: str):
-    try:
-        async with PieClient(PIE_URL) as client:
-            await client.auth_by_token(PIE_TOKEN)
-            await client.terminate_process(process_id)
-            return JSONResponse({"terminated": process_id})
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
+    return HTMLResponse(HTML)
 
 @app.get("/profiles")
 async def get_profiles():
@@ -86,12 +58,10 @@ async def chat(ws: WebSocket):
     await ws.accept()
     history = []
     total_tokens_used = 0
-
     try:
         async with PieClient(PIE_URL) as client:
             await client.auth_by_token(PIE_TOKEN)
             await client.install_program(WASM_PATH, TOML_PATH, force_overwrite=True)
-
             while True:
                 data = await ws.receive_json()
 
@@ -107,7 +77,14 @@ async def chat(ws: WebSocket):
                 system_prompt = data.get("system_prompt", "You are a helpful assistant.")
 
                 full_prompt = build_prompt(history, user_msg, system_prompt, max_tokens)
-                await ws.send_json({"type": "start"})
+                prompt_tokens = estimate_tokens(full_prompt)
+
+                await ws.send_json({
+                    "type": "start",
+                    "prompt_tokens": prompt_tokens,
+                    "context_limit": MAX_CONTEXT_TOKENS,
+                    "history_turns_included": len(history),
+                })
 
                 try:
                     proc = await client.launch_process(
@@ -118,7 +95,6 @@ async def chat(ws: WebSocket):
                             "temperature": temperature,
                         },
                     )
-
                     assistant_reply = ""
                     while True:
                         event, value = await asyncio.wait_for(proc.recv(), timeout=120)
@@ -131,13 +107,12 @@ async def chat(ws: WebSocket):
                             except Exception:
                                 result = {"text": value}
 
-                            tokens_this_turn = result.get("tokens_used", 0)
-                            total_tokens_used += tokens_this_turn
-
-                            import re
                             clean_reply = re.sub(r"<think>.*?</think>", "", assistant_reply, flags=re.DOTALL).strip()
                             if clean_reply:
                                 history.append({"user": user_msg, "assistant": clean_reply})
+
+                            tokens_this_turn = result.get("tokens_used", estimate_tokens(assistant_reply))
+                            total_tokens_used += tokens_this_turn
 
                             await ws.send_json({
                                 "type": "done",
@@ -147,15 +122,14 @@ async def chat(ws: WebSocket):
                                 "budget_exhausted": result.get("budget_exhausted", False),
                                 "total_tokens": total_tokens_used,
                                 "history_turns": len(history),
+                                "context_used_pct": round(prompt_tokens / MAX_CONTEXT_TOKENS * 100, 1),
                             })
                             break
                         elif event == Event.Error:
                             await ws.send_json({"type": "error", "msg": str(value)})
                             break
-
                 except Exception as e:
                     await ws.send_json({"type": "error", "msg": str(e)})
-
     except WebSocketDisconnect:
         pass
     except Exception as e:

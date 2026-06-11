@@ -203,7 +203,11 @@ function connect() {
       chatEl.appendChild(currentMsgEl);
       scroll();
     } else if (msg.type === 'token') {
-      if (currentMsgEl) currentMsgEl.textContent += msg.text;
+      if (currentMsgEl) {
+        currentMsgEl._raw = (currentMsgEl._raw || '') + msg.text;
+        const stripped = currentMsgEl._raw.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+        currentMsgEl.textContent = stripped || '...';
+      }
       scroll();
     } else if (msg.type === 'done') {
       const pct = Math.min(100, msg.utilization_pct);
