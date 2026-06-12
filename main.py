@@ -10,10 +10,14 @@ app = FastAPI()
 HTML = (Path(__file__).parent / "index.html").read_text(encoding="utf-8")
 
 PIE_URL = "ws://127.0.0.1:8080"
-PIE_TOKEN = "SGd1rY6ti-Ii5TqjXzqB5KrI-BXh3MUxoss2hWsBNCP_Ba2ZXgIBDPSmugUfUH7C"
+PIE_TOKEN = "tTrrNpxPUp1E4bfMOULy0xFOk0k0WJz7iZAqDT0Q-EJZdAzuC9VEvYa9dgfqhCgq"
 INFERLET = "my-first-inferlet@0.1.0"
 WASM_PATH = Path.home() / "my-first-inferlet/target/wasm32-wasip2/release/my_first_inferlet.wasm"
 TOML_PATH = Path.home() / "my-first-inferlet/Pie.toml"
+
+TOT_INFERLET = "tree-of-thought@0.1.0"
+TOT_WASM_PATH = Path(__file__).parent / "tree-of-thought-inferlet" / "tree_of_thought.wasm"
+TOT_TOML_PATH = Path(__file__).parent / "tree-of-thought-inferlet" / "Pie.toml"
 
 MAX_CONTEXT_TOKENS = 2048
 
@@ -62,6 +66,7 @@ async def chat(ws: WebSocket):
         async with PieClient(PIE_URL) as client:
             await client.auth_by_token(PIE_TOKEN)
             await client.install_program(WASM_PATH, TOML_PATH, force_overwrite=True)
+            await client.install_program(TOT_WASM_PATH, TOT_TOML_PATH, force_overwrite=True)
             while True:
                 data = await ws.receive_json()
 
@@ -69,6 +74,35 @@ async def chat(ws: WebSocket):
                     history = []
                     total_tokens_used = 0
                     await ws.send_json({"type": "history_cleared"})
+                    continue
+
+                if data.get("type") == "tot":
+                    question = data.get("question", "")
+                    num_branches = int(data.get("num_branches", 2))
+                    tot_max_tokens = int(data.get("max_tokens", 256))
+
+                    await ws.send_json({"type": "tot_start"})
+                    try:
+                        proc = await client.launch_process(
+                            TOT_INFERLET,
+                            input={
+                                "question": question,
+                                "num_branches": num_branches,
+                                "max_tokens": tot_max_tokens,
+                            },
+                        )
+                        while True:
+                            event, value = await asyncio.wait_for(proc.recv(), timeout=300)
+                            if event == Event.Stdout:
+                                await ws.send_json({"type": "tot_token", "text": value})
+                            elif event == Event.Return:
+                                await ws.send_json({"type": "tot_done"})
+                                break
+                            elif event == Event.Error:
+                                await ws.send_json({"type": "error", "msg": str(value)})
+                                break
+                    except Exception as e:
+                        await ws.send_json({"type": "error", "msg": str(e)})
                     continue
 
                 user_msg = data.get("prompt", "")

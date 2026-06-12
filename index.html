@@ -197,7 +197,19 @@ function connect() {
   ws.onerror = function(e) { console.error('ws error', e); };
   ws.onmessage = function(e) {
     const msg = JSON.parse(e.data);
-    if (msg.type === 'start') {
+    if (msg.type === 'tot_start') {
+      const totOutput = document.getElementById('tot-output');
+      if (totOutput) totOutput.textContent = '--- Tree of Thought started ---\n';
+    } else if (msg.type === 'tot_token') {
+      const totOutput = document.getElementById('tot-output');
+      if (totOutput) {
+        totOutput.textContent += msg.text;
+        totOutput.scrollTop = totOutput.scrollHeight;
+      }
+    } else if (msg.type === 'tot_done') {
+      const totRun = document.getElementById('tot-run');
+      if (totRun) { totRun.disabled = false; totRun.textContent = 'Run ToT'; }
+    } else if (msg.type === 'start') {
       currentMsgEl = document.createElement('div');
       currentMsgEl.className = 'msg assistant';
       chatEl.appendChild(currentMsgEl);
@@ -270,5 +282,35 @@ msgEl.addEventListener('keydown', function(e) {
 addMsg("Hello! I am Pie Chat — running on your local inference engine. I remember our conversation context across turns. Switch to the Engine tab to view server status and manage processes.", 'assistant');
 connect();
 </script>
-</body>
+
+<div id="tot-panel" style="margin-top:16px;padding:12px;border:1px solid #30363d;border-radius:8px;">
+  <h3 style="margin-top:0;color:#e6edf3;">Tree of Thought</h3>
+  <input id="tot-question" type="text" placeholder="Question (default: arithmetic example)"
+         style="width:100%;padding:8px;background:#21262d;border:1px solid #30363d;border-radius:6px;color:#e6edf3;margin-bottom:8px;" />
+  <div style="display:flex;gap:8px;margin-bottom:8px;">
+    <input id="tot-branches" type="number" value="2" min="1" max="4"
+           style="width:80px;padding:8px;background:#21262d;border:1px solid #30363d;border-radius:6px;color:#e6edf3;" placeholder="Branches" />
+    <input id="tot-maxtokens" type="number" value="128" min="32" max="512"
+           style="width:100px;padding:8px;background:#21262d;border:1px solid #30363d;border-radius:6px;color:#e6edf3;" placeholder="Max tokens" />
+    <button id="tot-run" style="padding:8px 16px;background:#238636;color:#fff;border:none;border-radius:6px;cursor:pointer;">Run ToT</button>
+  </div>
+  <pre id="tot-output" style="white-space:pre-wrap;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:12px;max-height:400px;overflow-y:auto;color:#c9d1d9;font-size:12px;"></pre>
+</div>
+
+
+\n
+<script>
+document.getElementById('tot-run').addEventListener('click', () => {
+  const question = document.getElementById('tot-question').value;
+  const num_branches = parseInt(document.getElementById('tot-branches').value) || 2;
+  const max_tokens = parseInt(document.getElementById('tot-maxtokens').value) || 128;
+  const totRun = document.getElementById('tot-run');
+  const totOutput = document.getElementById('tot-output');
+  totOutput.textContent = '';
+  totRun.disabled = true;
+  totRun.textContent = 'Running...';
+  ws.send(JSON.stringify({ type: 'tot', question, num_branches, max_tokens }));
+});
+</script>
+\n</body>
 </html>
