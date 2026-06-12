@@ -74,6 +74,12 @@ Open http://localhost:3000
 - The internal token changes every time `pie serve` restarts — update `PIE_TOKEN` in `main.py` accordingly.
 - Tree-of-Thought uses `launch_process` (not `launch_daemon`) so it works on Windows without the shared memory limitation.
 
+  <img width="1919" height="976" alt="Screenshot 2026-06-12 140811" src="https://github.com/user-attachments/assets/26281aa9-0091-4d66-9ded-32d4b3ce84d6" />
+  <img width="1919" height="983" alt="Screenshot 2026-06-12 140758" src="https://github.com/user-attachments/assets/5a600fb5-b900-4d37-bf5f-7a16be796cdb" />
+<img width="1919" height="975" alt="Screenshot 2026-06-12 140739" src="https://github.com/user-attachments/assets/3bc2419a-ec52-4970-9817-e08106932823" />
+<img width="1919" height="975" alt="Screenshot 2026-06-12 140739 - Copy" src="https://github.com/user-attachments/assets/034fe9a8-35dd-403c-98fc-5e4110b4a3bd" />
+
+
 ## Author
 
 Dhruv Dubey — [github.com/zatchbell1311-wq](https://github.com/zatchbell1311-wq)
